@@ -29,27 +29,24 @@ Il codice principale dell'applicazione risiede interamente nella cartella `lib/`
 
 ## 🚀 Come avviare l'app su Android Studio
 
-Segui questi passaggi per avviare e testare l'applicazione mobile sul tuo computer:
+Segui questi passaggi generali per avviare e testare l'applicazione mobile sul tuo computer:
 
 ### 1. Prerequisiti
-Assicurati che Flutter sia correttamente configurato sul tuo sistema:
-```sh
-export PATH="$PATH:/Users/ilariopolidori/development/flutter/bin"
-```
+Assicurati di aver installato correttamente il **Flutter SDK** sul tuo computer e di aver configurato la variabile d'ambiente `PATH` seguendo la guida ufficiale di Flutter per il tuo sistema operativo (macOS, Windows o Linux).
 
 ### 2. Sincronizzazione dei pacchetti
-Prima del primo avvio, apri il terminale di Android Studio o esegui il comando per scaricare tutte le librerie necessarie (Firebase, Provider, ecc.):
+Prima del primo avvio, apri il terminale integrato di Android Studio (o la tua shell di sistema) posizionandoti nella cartella principale del progetto ed esegui il comando per scaricare tutte le librerie necessarie (Firebase, Provider, ecc.):
 ```sh
 flutter pub get
 ```
 
 ### 3. Avviare l'Emulatore Android
-1. In Android Studio, apri il **Device Manager** (cliccando sull'icona del telefono nella barra laterale destra o andando su `Tools` -> `Device Manager`).
-2. Trova il tuo emulatore (es. `Medium Phone API 36.1`).
-3. Se l'emulatore dovesse risultare bloccato o dare l'errore *FATAL*, clicca sui **tre puntini verticali** alla fine della riga e seleziona **Cold Boot Now** per forzarne il riavvio pulito.
+1. In Android Studio, apri il **Device Manager** (cliccando sull'icona del dispositivo nella barra laterale destra o andando su `Tools` -> `Device Manager`).
+2. Avvia il tuo emulatore Android preconfigurato (es. un qualsiasi dispositivo virtuale con API 33 o successive).
+3. Se l'emulatore dovesse risultare bloccato o dare l'errore *FATAL*, clicca sui **tre puntini verticali** alla fine della riga del dispositivo nel Device Manager e seleziona **Cold Boot Now** per forzarne un riavvio pulito.
 
 ### 4. Selezione del Dispositivo ed Esecuzione
-1. Nella barra superiore di Android Studio, individua il menu a tendina dei dispositivi (accanto al pulsante Play verde).
-2. Assicurati che sia selezionato l'**Emulatore Android appena avviato** (o il tuo smartphone fisico collegato via USB) e **NON** la voce *macOS (desktop)*.
+1. Nella barra superiore di Android Studio, individua il menu a tendina per la selezione dei dispositivi (accanto al pulsante Play verde).
+2. Assicurati che sia selezionato l'**Emulatore Android** appena avviato (o il tuo smartphone fisico collegato tramite cavo USB con il Debug USB attivo). *Evita di selezionare piattaforme desktop come macOS o Windows se desideri testare solo l'interfaccia mobile*.
 3. Apri il file `lib/main.dart`.
-4. Clicca sul pulsante **Run (Triangolo Verde)** oppure premi `Shift + F10` per compilare ed avviare l'applicazione mobile.
+4. Clicca sul pulsante **Run (Triangolo Verde)** oppure premi la scorciatoia da tastiera (`Shift + F10` su Windows/Linux, `Control + R` su macOS) per compilare ed avviare l'applicazione mobile.
