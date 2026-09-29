@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1088763618382",
+    "project_id": "porgetto-programmazione-mobile",
+    "storage_bucket": "porgetto-programmazione-mobile.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1088763618382:android:f23885cb0ec23fb30ecf1f",
+        "android_client_info": {
+          "package_name": "com.example.easy_book_flutter"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDvJ_ZNSw2136LvKyqyCVfWUhU3s_ctyOA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
