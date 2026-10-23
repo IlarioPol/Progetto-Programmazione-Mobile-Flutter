@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../data/models/app_user.dart';
 import '../../../data/models/service.dart';
 import '../../viewmodels/client_viewmodel.dart';
+import 'client_home_screen.dart';
 
 /// Screen showing details of a business (gallery, info, team, service catalog).
 class BusinessDetailScreen extends StatefulWidget {
@@ -37,12 +38,14 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
   Widget build(BuildContext context) {
     return Consumer<ClientViewModel>(
       builder: (context, clientVM, _) {
-        final business = clientVM.availableBusinesses
-            .where((b) => b.id == widget.businessId)
-            .firstOrNull;
-        final businessServices = clientVM.availableServices
-            .where((s) => s.businessId == widget.businessId)
-            .toList();
+        final business = clientVM.allBusinesses
+                .where((b) => b.id == widget.businessId)
+                .firstOrNull ??
+            clientVM.availableBusinesses
+                .where((b) => b.id == widget.businessId)
+                .firstOrNull;
+        final businessServices =
+            clientVM.getServicesForBusiness(widget.businessId);
 
         return Scaffold(
           appBar: AppBar(
@@ -171,20 +174,36 @@ class _BusinessDetailScreenState extends State<BusinessDetailScreen> {
                           'Nessun servizio disponibile al momento.',
                           style: TextStyle(color: Colors.grey))
                     else
-                      ...businessServices
-                          .map((s) => _ServiceCardDetail(service: s)),
+                      ...businessServices.map((s) => _ServiceCardDetail(
+                            service: s,
+                            onBook: () => _showBookingDialog(context, s),
+                          )),
                   ],
                 ),
         );
       },
     );
   }
+
+  void _showBookingDialog(BuildContext context, Service service) {
+    showDialog(
+      context: context,
+      builder: (_) => BookingDialog(
+        service: service,
+        clientVM: context.read<ClientViewModel>(),
+      ),
+    );
+  }
 }
 
 class _ServiceCardDetail extends StatelessWidget {
   final Service service;
+  final VoidCallback onBook;
 
-  const _ServiceCardDetail({required this.service});
+  const _ServiceCardDetail({
+    required this.service,
+    required this.onBook,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -211,10 +230,7 @@ class _ServiceCardDetail extends StatelessWidget {
               ),
             ),
             FilledButton(
-              onPressed: () {
-                // Booking handled from home screen
-                Navigator.of(context).pop();
-              },
+              onPressed: onBook,
               child: const Text('Prenota'),
             ),
           ],

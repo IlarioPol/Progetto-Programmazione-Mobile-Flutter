@@ -20,6 +20,13 @@ class ClientViewModel extends ChangeNotifier {
   List<Service> _allServices = [];
   List<Business> _allBusinesses = [];
 
+  List<Business> get allBusinesses => _allBusinesses;
+  List<Service> get allServices => _allServices;
+
+  List<Service> getServicesForBusiness(String businessId) {
+    return _allServices.where((s) => s.businessId == businessId).toList();
+  }
+
   List<Service> availableServices = [];
   List<Business> availableBusinesses = [];
 
@@ -79,22 +86,28 @@ class ClientViewModel extends ChangeNotifier {
   }
 
   void _applyFilters() {
-    final query = _searchQuery.toLowerCase();
-    final cat = _selectedCategory;
+    final query = _searchQuery.trim().toLowerCase();
+    final cat = _selectedCategory.trim().toLowerCase();
 
     availableBusinesses = _allBusinesses.where((business) {
-      final matchesQuery = business.name.toLowerCase().contains(query) ||
-          business.description.toLowerCase().contains(query);
-      final matchesCat = cat == 'Tutte' || business.category == cat;
+      final matchesQuery = query.isEmpty ||
+          business.name.toLowerCase().contains(query) ||
+          business.description.toLowerCase().contains(query) ||
+          business.category.toLowerCase().contains(query);
+      final matchesCat =
+          cat == 'tutte' || business.category.trim().toLowerCase() == cat;
       return matchesQuery && matchesCat;
     }).toList();
 
     availableServices = _allServices.where((service) {
       final business =
           _allBusinesses.where((b) => b.id == service.businessId).firstOrNull;
-      final matchesCat =
-          cat == 'Tutte' || (business != null && business.category == cat);
-      final matchesQuery = service.name.toLowerCase().contains(query) ||
+      final matchesCat = cat == 'tutte' ||
+          (business != null &&
+              business.category.trim().toLowerCase() == cat);
+      final matchesQuery = query.isEmpty ||
+          service.name.toLowerCase().contains(query) ||
+          service.description.toLowerCase().contains(query) ||
           (business != null &&
               business.name.toLowerCase().contains(query));
       return matchesCat && matchesQuery;

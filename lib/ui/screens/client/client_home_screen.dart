@@ -118,7 +118,8 @@ class _ExploreTab extends StatelessWidget {
               return FilterChip(
                 selected: selected,
                 label: Text(cat),
-                onSelected: (_) => clientVM.onCategorySelected(cat),
+                onSelected: (isSelected) =>
+                    clientVM.onCategorySelected(isSelected ? cat : 'Tutte'),
               );
             },
           ),
@@ -171,7 +172,7 @@ class _ExploreTab extends StatelessWidget {
   void _showBookingDialog(BuildContext context, Service service) {
     showDialog(
       context: context,
-      builder: (_) => _BookingDialog(
+      builder: (_) => BookingDialog(
         service: service,
         clientVM: context.read<ClientViewModel>(),
       ),
@@ -436,17 +437,17 @@ class _MyBookingsTab extends StatelessWidget {
 
 // ─── Booking Dialog ───────────────────────────────────────────
 
-class _BookingDialog extends StatefulWidget {
+class BookingDialog extends StatefulWidget {
   final Service service;
   final ClientViewModel clientVM;
 
-  const _BookingDialog({required this.service, required this.clientVM});
+  const BookingDialog({super.key, required this.service, required this.clientVM});
 
   @override
-  State<_BookingDialog> createState() => _BookingDialogState();
+  State<BookingDialog> createState() => _BookingDialogState();
 }
 
-class _BookingDialogState extends State<_BookingDialog> {
+class _BookingDialogState extends State<BookingDialog> {
   String? _selectedDateText;
   String? _selectedSlot;
 
@@ -458,11 +459,12 @@ class _BookingDialogState extends State<_BookingDialog> {
 
   Future<void> _selectDate() async {
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     final picked = await showDatePicker(
       context: context,
-      initialDate: now,
-      firstDate: now,
-      lastDate: now.add(const Duration(days: 365)),
+      initialDate: today,
+      firstDate: today,
+      lastDate: today.add(const Duration(days: 365)),
       locale: const Locale('it', 'IT'),
     );
     if (picked != null) {
