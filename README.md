@@ -50,3 +50,70 @@ flutter pub get
 2. Assicurati che sia selezionato l'**Emulatore Android** appena avviato (o il tuo smartphone fisico collegato tramite cavo USB con il Debug USB attivo). *Evita di selezionare piattaforme desktop come macOS o Windows se desideri testare solo l'interfaccia mobile*.
 3. Apri il file `lib/main.dart`.
 4. Clicca sul pulsante **Run (Triangolo Verde)** oppure premi la scorciatoia da tastiera (`Shift + F10` su Windows/Linux, `Control + R` su macOS) per compilare ed avviare l'applicazione mobile.
+
+---
+
+## 🏗️ Architettura e Struttura Completa del Progetto
+
+### 1. Ruolo delle cartelle native e di compilazione (`android/`, `ios/`, `build/`)
+
+Anche se l'app è sviluppata interamente in Flutter/Dart, per girare sui dispositivi fisici o emulatori necessita dei progetti "ospiti" nativi:
+
+* **`android/`**: È un progetto nativo Android gestito da Gradle. Contiene il manifest (`AndroidManifest.xml`) per la gestione dei permessi (es. connessione Internet, fotocamera), le icone dell'applicazione, le configurazioni di compilazione e le risorse grafiche di caricamento iniziale (come `launch_background.xml`, che gestisce la splash screen nativa prima che il motore Flutter sia pronto). L'entry point nativo è `MainActivity.kt`.
+* **`ios/`**: È il corrispondente progetto nativo iOS gestito tramite Xcode e CocoaPods. Contiene `Info.plist` (per i permessi di sicurezza iOS), le icone per i vari formati Apple e il file `AppDelegate.swift`.
+* **`build/`**: È la directory generata automaticamente durante i processi di compilazione (`flutter run` o `flutter build`). Contiene i file binari compilati (.apk, bundle, ecc.), le cache dei plugin e i file intermedi. È esclusa dal controllo versione (`.gitignore`) e può essere rimossa o rigenerata in qualsiasi momento con il comando `flutter clean`.
+
+---
+
+### 2. Albero del codice sorgente (`lib/`)
+
+```text
+lib/
+├── firebase_options.dart       # Parametri di configurazione e connessione a Firebase
+├── main.dart                   # Entry point, inizializzazione e navigazione primaria
+│
+├── data/
+│   └── models/                 # [MODEL] Strutture dati dell'applicazione
+│       ├── app_user.dart       # Dati profilo utente
+│       ├── user_role.dart      # Enum/classificazione ruoli (Client, Provider, Manager)
+│       ├── business.dart       # Attività commerciale/negozio
+│       ├── service.dart        # Servizi offerti (prezzo, durata, ecc.)
+│       ├── booking.dart        # Prenotazioni degli utenti
+│       ├── availability.dart   # Orari di disponibilità
+│       └── review.dart         # Recensioni dei clienti
+│
+└── ui/
+    ├── viewmodels/             # [VIEWMODEL] Logica di business e connessione a Firebase
+    │   ├── auth_viewmodel.dart     # Registrazione, Login, Logout, stato sessione
+    │   ├── client_viewmodel.dart   # Ricerca attività, prenotazioni lato cliente
+    │   ├── provider_viewmodel.dart # Gestione appuntamenti del professionista dipendente
+    │   └── manager_viewmodel.dart  # Configurazione negozio, orari, servizi, dipendenti
+    │
+    └── screens/                # [VIEW] Schermate utente (Widget UI)
+        ├── auth/               # Login, Registrazione
+        ├── client/             # Dashboard cliente, Dettaglio negozio e prenotazione
+        ├── provider/           # Dashboard professionista dipendente
+        ├── manager/            # Dashboard manager e setup iniziale attività
+        └── profile/            # Profilo utente e logout
+```
+
+---
+
+### 3. Come Funziona il Flusso dell'Applicazione
+
+1. **Inizializzazione (`main.dart`)**:
+   * All'avvio viene eseguita la funzione `main()`, che inizializza i binding di Flutter e configura la connessione ai servizi cloud tramite `firebase_options.dart`.
+   * Viene registrato nel widget tree un `MultiProvider`, rendendo accessibili a tutte le schermate i 4 ViewModel (`AuthViewModel`, `ClientViewModel`, `ProviderViewModel`, `ManagerViewModel`).
+
+2. **Controllo dell'Autenticazione e Routing per Ruolo (`MainNavigator`)**:
+   * Il navigatore principale monitora lo stato della sessione tramite `AuthViewModel`:
+     * **Utente non autenticato**: Mostra `LoginScreen` o `RegisterScreen`.
+     * **Utente autenticato**: Recupera il ruolo associato al profilo da Cloud Firestore (`UserRole`) e carica l'interfaccia corretta:
+       * **Cliente (`client`)**: Viene indirizzato su `ClientHomeScreen`.
+       * **Professionista (`provider`)**: Viene indirizzato su `ProviderHomeScreen`.
+       * **Manager (`manager`)**: Se l'attività commerciale non è ancora stata configurata apre `BusinessSetupScreen`, altrimenti reindirizza alla dashboard `ManagerHomeScreen`.
+
+3. **Ciclo Reattivo dei Dati (MVVM + Provider + Firebase)**:
+   * **View (Schermata)**: Raccoglie le interazioni dell'utente (es. prenotazione di un servizio, login, cambio orari) e delega l'azione al relativo **ViewModel**.
+   * **ViewModel**: Gestisce la logica di business ed effettua le operazioni asincrone verso **Firebase** (Auth, Firestore, Storage). Al termine dell'operazione, notifica i cambiamenti con `notifyListeners()`.
+   * **Reattività della UI**: Tutti i widget in ascolto tramite `Consumer` o `context.watch()` si ricostruiscono automaticamente per riflettere le modifiche in tempo reale.
