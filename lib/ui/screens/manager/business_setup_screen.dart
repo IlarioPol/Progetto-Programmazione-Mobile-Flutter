@@ -36,9 +36,11 @@ class _BusinessSetupScreenState extends State<BusinessSetupScreen> {
   Widget build(BuildContext context) {
     return Consumer<AuthViewModel>(
       builder: (context, authVM, _) {
-        // Navigate on success
+        // Navigate on success or if business is already loaded
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (authVM.status == AuthStatus.businessCreated && !_setupTriggered) {
+          if ((authVM.status == AuthStatus.businessCreated ||
+                  authVM.userBusiness != null) &&
+              !_setupTriggered) {
             _setupTriggered = true;
             widget.onSetupComplete();
           }

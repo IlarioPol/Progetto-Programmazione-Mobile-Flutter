@@ -157,7 +157,27 @@ class AuthViewModel extends ChangeNotifier {
     if (managerId == null) return;
     _setLoading();
     try {
-      final businessId = const Uuid().v4();
+      // Re-use existing business for this manager if already present
+      final existing = await _db
+          .collection('businesses')
+          .where('managerId', isEqualTo: managerId)
+          .limit(1)
+          .get();
+
+      final String businessId;
+      final List<String> providerIds;
+
+      if (existing.docs.isNotEmpty) {
+        businessId = existing.docs.first.id;
+        final existingBusiness = Business.fromFirestore(existing.docs.first);
+        providerIds = existingBusiness.providerIds.isNotEmpty
+            ? existingBusiness.providerIds
+            : [managerId];
+      } else {
+        businessId = const Uuid().v4();
+        providerIds = [managerId];
+      }
+
       final business = Business(
         id: businessId,
         name: name,
@@ -165,20 +185,20 @@ class AuthViewModel extends ChangeNotifier {
         description: description,
         address: address,
         managerId: managerId,
-        providerIds: [managerId],
+        providerIds: providerIds,
       );
       await _db
           .collection('businesses')
           .doc(businessId)
-          .set(business.toFirestore());
+          .set(business.toFirestore(), SetOptions(merge: true));
       await _db
           .collection('users')
           .doc(managerId)
           .update({'businessId': businessId});
       _userBusiness = business;
+      _currentUser = _currentUser?.copyWith(businessId: businessId);
       _status = AuthStatus.businessCreated;
       notifyListeners();
-      _refreshUserDataSilent(managerId);
     } catch (e) {
       _setError('Errore creazione azienda: $e');
     }
@@ -288,15 +308,48 @@ class AuthViewModel extends ChangeNotifier {
       final doc = await _db.collection('users').doc(uid).get();
       if (doc.exists) {
         _currentUser = AppUser.fromFirestore(doc);
+        _userBusiness = null;
+
+        // 1. Fetch business if user profile has businessId
+        if (_currentUser!.businessId != null &&
+            _currentUser!.businessId!.trim().isNotEmpty) {
+          final bDoc = await _db
+              .collection('businesses')
+              .doc(_currentUser!.businessId)
+              .get();
+          if (bDoc.exists) {
+            _userBusiness = Business.fromFirestore(bDoc);
+          }
+        }
+
+        // 2. If manager and business is still not found, search by managerId
+        if (_currentUser!.role == UserRole.manager && _userBusiness == null) {
+          final querySnap = await _db
+              .collection('businesses')
+              .where('managerId', isEqualTo: uid)
+              .limit(1)
+              .get();
+          if (querySnap.docs.isNotEmpty) {
+            _userBusiness = Business.fromFirestore(querySnap.docs.first);
+            await _db
+                .collection('users')
+                .doc(uid)
+                .update({'businessId': _userBusiness!.id});
+            _currentUser =
+                _currentUser!.copyWith(businessId: _userBusiness!.id);
+          }
+        }
+
+        // 3. If provider without business, check for pending invitations
+        if (_currentUser!.role == UserRole.provider &&
+            (_currentUser!.businessId == null ||
+                _currentUser!.businessId!.trim().isEmpty)) {
+          await _checkForInvitations(_currentUser!.email);
+        }
+
+        // 4. Mark status as success only AFTER business data is resolved!
         _status = AuthStatus.success;
         notifyListeners();
-        if (_currentUser!.businessId != null) {
-          _fetchBusinessData(_currentUser!.businessId!);
-        }
-        if (_currentUser!.role == UserRole.provider &&
-            _currentUser!.businessId == null) {
-          _checkForInvitations(_currentUser!.email);
-        }
       } else {
         _setError('Utente non trovato nel database');
       }
@@ -305,29 +358,6 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> _refreshUserDataSilent(String uid) async {
-    try {
-      final doc = await _db.collection('users').doc(uid).get();
-      if (doc.exists) {
-        _currentUser = AppUser.fromFirestore(doc);
-        _status = AuthStatus.success;
-        notifyListeners();
-        if (_currentUser!.businessId != null) {
-          _fetchBusinessData(_currentUser!.businessId!);
-        }
-      }
-    } catch (_) {}
-  }
-
-  Future<void> _fetchBusinessData(String businessId) async {
-    try {
-      final doc = await _db.collection('businesses').doc(businessId).get();
-      if (doc.exists) {
-        _userBusiness = Business.fromFirestore(doc);
-        notifyListeners();
-      }
-    } catch (_) {}
-  }
 
   Future<void> _checkForInvitations(String email) async {
     try {
