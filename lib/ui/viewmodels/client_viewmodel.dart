@@ -100,8 +100,10 @@ class ClientViewModel extends ChangeNotifier {
     }).toList();
 
     availableServices = _allServices.where((service) {
-      final business =
-          _allBusinesses.where((b) => b.id == service.businessId).firstOrNull;
+      // Mapping corretto con il business tramite businessId o providerId
+      final business = _allBusinesses.where((b) =>
+          b.id == service.businessId ||
+          b.providerIds.contains(service.providerId)).firstOrNull;
       final matchesCat = cat == 'tutte' ||
           (business != null &&
               business.category.trim().toLowerCase() == cat);
@@ -138,7 +140,8 @@ class ClientViewModel extends ChangeNotifier {
         selectedProviderAvailability =
             ProviderAvailability.fromFirestore(doc);
       } else {
-        selectedProviderAvailability = null;
+        selectedProviderAvailability =
+            ProviderAvailability.getDefault(providerId);
       }
       notifyListeners();
     } catch (_) {}
@@ -237,11 +240,17 @@ class ClientViewModel extends ChangeNotifier {
     if (clientId == null) return;
 
     final bookingId = const Uuid().v4();
+    final business = _allBusinesses.where((b) =>
+        b.id == service.businessId ||
+        b.providerIds.contains(service.providerId)).firstOrNull;
+
     final newBooking = Booking(
       id: bookingId,
       serviceId: service.id,
       providerId: service.providerId,
-      businessId: service.businessId,
+      businessId: (business != null && business.id.isNotEmpty)
+          ? business.id
+          : service.businessId,
       serviceName: service.name,
       clientId: clientId,
       date: date,

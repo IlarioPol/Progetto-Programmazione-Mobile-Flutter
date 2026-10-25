@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../data/models/business.dart';
 import '../../viewmodels/auth_viewmodel.dart';
@@ -29,7 +31,11 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authVM = context.read<AuthViewModel>();
       final managerVM = context.read<ManagerViewModel>();
-      managerVM.fetchMyProviders(authVM.userBusiness?.id);
+      final bId = authVM.userBusiness?.id;
+      if (bId != null && bId.isNotEmpty) {
+        managerVM.listenToBusiness(bId);
+        managerVM.fetchMyProviders(bId);
+      }
     });
   }
 
@@ -37,7 +43,15 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
   Widget build(BuildContext context) {
     return Consumer2<ManagerViewModel, AuthViewModel>(
       builder: (context, managerVM, authVM, _) {
-        final business = authVM.userBusiness;
+        final business = managerVM.currentBusiness ?? authVM.userBusiness;
+
+        if (managerVM.currentBusiness == null &&
+            business?.id != null &&
+            business!.id.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            managerVM.listenToBusiness(business.id);
+          });
+        }
 
         return Scaffold(
           appBar: AppBar(
@@ -62,6 +76,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
             children: [
               _TeamTab(managerVM: managerVM, business: business),
               _StatsTab(managerVM: managerVM),
+              _BusinessProfileTab(managerVM: managerVM, business: business),
             ],
           ),
           floatingActionButton: _selectedTab == 0
@@ -79,6 +94,8 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                   icon: Icon(Icons.person), label: 'Team'),
               NavigationDestination(
                   icon: Icon(Icons.bar_chart), label: 'Statistiche'),
+              NavigationDestination(
+                  icon: Icon(Icons.business), label: 'Profilo'),
             ],
           ),
         );
@@ -337,6 +354,352 @@ class _StatCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _BusinessProfileTab extends StatefulWidget {
+  final ManagerViewModel managerVM;
+  final Business? business;
+
+  const _BusinessProfileTab({
+    required this.managerVM,
+    required this.business,
+  });
+
+  @override
+  State<_BusinessProfileTab> createState() => _BusinessProfileTabState();
+}
+
+class _BusinessProfileTabState extends State<_BusinessProfileTab> {
+  late final TextEditingController _descriptionController;
+  late final TextEditingController _addressController;
+
+  @override
+  void initState() {
+    super.initState();
+    _descriptionController =
+        TextEditingController(text: widget.business?.description ?? '');
+    _addressController =
+        TextEditingController(text: widget.business?.address ?? '');
+  }
+
+  @override
+  void didUpdateWidget(covariant _BusinessProfileTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.business?.description != widget.business?.description) {
+      if (_descriptionController.text.isEmpty ||
+          _descriptionController.text == oldWidget.business?.description) {
+        _descriptionController.text = widget.business?.description ?? '';
+      }
+    }
+    if (oldWidget.business?.address != widget.business?.address) {
+      if (_addressController.text.isEmpty ||
+          _addressController.text == oldWidget.business?.address) {
+        _addressController.text = widget.business?.address ?? '';
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _descriptionController.dispose();
+    _addressController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickAndUploadImage() async {
+    final business = widget.business;
+    if (business == null) return;
+
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Scegli dalla galleria'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Scatta una foto'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (source == null) return;
+
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: source,
+        imageQuality: 80,
+      );
+      if (picked == null) return;
+
+      final error =
+          await widget.managerVM.uploadBusinessImage(business.id, picked);
+      if (!mounted) return;
+
+      if (error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Errore caricamento: $error'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Foto caricata con successo!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Errore selezione foto: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final business = widget.business;
+    if (business == null) {
+      return const Center(child: Text('Nessuna azienda associata'));
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Text(
+          'Profilo Aziendale',
+          style: Theme.of(context)
+              .textTheme
+              .titleLarge
+              ?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const Text(
+          'Gestisci le informazioni visibili ai clienti',
+          style: TextStyle(color: Colors.grey, fontSize: 13),
+        ),
+        const SizedBox(height: 16),
+
+        // Main info Card
+        Card(
+          elevation: 2,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Dati Principali',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                const SizedBox(height: 8),
+                Text('Nome: ${business.name}',
+                    style: const TextStyle(fontWeight: FontWeight.w500)),
+                Text('Categoria: ${business.category}',
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary)),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _descriptionController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Descrizione',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _addressController,
+                  decoration: const InputDecoration(
+                    labelText: 'Indirizzo',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton(
+                    onPressed: () async {
+                      final error = await widget.managerVM.updateBusinessInfo(
+                        business.id,
+                        _descriptionController.text.trim(),
+                        _addressController.text.trim(),
+                      );
+                      if (context.mounted) {
+                        if (error != null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Errore salvataggio: $error'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Modifiche salvate con successo!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    child: const Text('Salva Modifiche'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // Photo Gallery
+        Text(
+          'Galleria Immagini',
+          style: Theme.of(context)
+              .textTheme
+              .titleMedium
+              ?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+
+        if (widget.managerVM.isUploading) ...[
+          const LinearProgressIndicator(),
+          const SizedBox(height: 8),
+        ],
+
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            onPressed: widget.managerVM.isUploading ? null : _pickAndUploadImage,
+            icon: const Icon(Icons.photo_camera_back),
+            label: const Text('Aggiungi Foto'),
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        if (business.imageUrls.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Text(
+              'Nessuna immagine caricata.',
+              style: TextStyle(color: Colors.grey),
+            ),
+          )
+        else
+          SizedBox(
+            height: 160,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: business.imageUrls.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (context, index) {
+                final url = business.imageUrls[index];
+                return Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: CachedNetworkImage(
+                        imageUrl: url,
+                        width: 160,
+                        height: 160,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
+                          width: 160,
+                          height: 160,
+                          color: Colors.grey.shade200,
+                          child: const Center(
+                              child: CircularProgressIndicator()),
+                        ),
+                        errorWidget: (_, __, ___) => Container(
+                          width: 160,
+                          height: 160,
+                          color: Colors.grey.shade200,
+                          child: const Icon(Icons.broken_image),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: CircleAvatar(
+                        radius: 16,
+                        backgroundColor: Colors.black54,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          iconSize: 18,
+                          icon: const Icon(Icons.delete, color: Colors.redAccent),
+                          onPressed: () async {
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Elimina foto'),
+                                content: const Text(
+                                    'Vuoi davvero eliminare questa foto dalla galleria?'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.of(ctx).pop(false),
+                                    child: const Text('Annulla'),
+                                  ),
+                                  FilledButton(
+                                    onPressed: () =>
+                                        Navigator.of(ctx).pop(true),
+                                    child: const Text('Elimina'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirm != true || !context.mounted) return;
+
+                            final error = await widget.managerVM
+                                .deleteImage(business.id, url);
+                            if (context.mounted) {
+                              if (error != null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content:
+                                        Text('Errore eliminazione foto: $error'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Foto rimossa con successo'),
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+      ],
     );
   }
 }

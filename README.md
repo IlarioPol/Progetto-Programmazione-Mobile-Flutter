@@ -117,3 +117,26 @@ lib/
    * **View (Schermata)**: Raccoglie le interazioni dell'utente (es. prenotazione di un servizio, login, cambio orari) e delega l'azione al relativo **ViewModel**.
    * **ViewModel**: Gestisce la logica di business ed effettua le operazioni asincrone verso **Firebase** (Auth, Firestore, Storage). Al termine dell'operazione, notifica i cambiamenti con `notifyListeners()`.
    * **Reattività della UI**: Tutti i widget in ascolto tramite `Consumer` o `context.watch()` si ricostruiscono automaticamente per riflettere le modifiche in tempo reale.
+
+---
+
+## 🔄 Funzionalità Avanzate e Sincronizzazione Dati Real-Time
+
+In allineamento con la controparte nativa Android/Kotlin, l'applicazione integra:
+
+### 1. Gestione Profilo Aziendale per Manager (`ManagerHomeScreen`)
+* **Tab Profilo Aziendale**: I Manager possono consultare e modificare in tempo reale la descrizione e l'indirizzo della propria sede.
+* **Galleria Fotografica con Firebase Storage**: Supporto al caricamento asincrono di immagini tramite galleria (`image_picker`) e rimozione rapida di foto da Firebase Storage e Firestore.
+
+### 2. Sincronizzazione Retroattiva e Coerenza Dati (`ManagerViewModel`)
+* **`syncBusinessDataRetroactively`**: Risolve automaticamente le discrepanze storiche: quando un professionista viene associato a un'azienda, i suoi servizi e le relative prenotazioni pregresse vengono aggiornati in batch popolando il `businessId` mancante.
+* **Statistiche Real-Time Reattive**: Calcolo istantaneo di fatturato totale, fatturato mensile, trend dei servizi più richiesti e valutazioni medie dei professionisti basato su snapshot in tempo reale e cache reattiva.
+
+### 3. Sincronizzazione Automatica Provider (`ProviderViewModel` & `AuthViewModel`)
+* **Listener Stato Utente**: `ProviderViewModel` rileva in tempo reale l'assegnazione a un business e sincronizza automaticamente i servizi orfani.
+* **Accettazione Inviti**: All'accettazione di un invito aziendale in `AuthViewModel`, i servizi associati al provider vengono collegati istantaneamente al `businessId` designato.
+
+### 4. Ottimizzazione Ricerca e Prenotazioni (`ClientViewModel`)
+* **Mapping Ibrido Servizio-Azienda**: La ricerca e il catalogo associano i servizi alle aziende verificando sia il `businessId` diretto sia l'appartenenza del professionista (`providerIds`).
+* **Integrità Prenotazioni**: Alla creazione di ogni nuova prenotazione, il `businessId` viene sempre valorizzato garantendo la piena tracciabilità nelle statistiche del manager.
+

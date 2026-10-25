@@ -255,10 +255,27 @@ class AuthViewModel extends ChangeNotifier {
         transaction.delete(inviteRef);
       });
       _pendingInvitation = null;
+      // Aggiornamento automatico del businessId nei servizi del provider
+      await _updateProviderServicesBusinessId(userId, businessId);
       await _fetchUserData(userId);
     } catch (e) {
       _setError('Errore accettazione invito');
     }
+  }
+
+  Future<void> _updateProviderServicesBusinessId(
+      String providerId, String businessId) async {
+    try {
+      final snapshot = await _db
+          .collection('services')
+          .where('providerId', isEqualTo: providerId)
+          .get();
+      final batch = _db.batch();
+      for (final doc in snapshot.docs) {
+        batch.update(doc.reference, {'businessId': businessId});
+      }
+      await batch.commit();
+    } catch (_) {}
   }
 
   void declineInvitation() {

@@ -23,6 +23,7 @@ class ProviderViewModel extends ChangeNotifier {
 
   AppUser? _currentUser;
 
+  StreamSubscription? _userSub;
   StreamSubscription? _servicesSub;
   StreamSubscription? _bookingsSub;
   StreamSubscription? _reviewsSub;
@@ -34,6 +35,7 @@ class ProviderViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    _userSub?.cancel();
     _servicesSub?.cancel();
     _bookingsSub?.cancel();
     _reviewsSub?.cancel();
@@ -41,15 +43,40 @@ class ProviderViewModel extends ChangeNotifier {
     super.dispose();
   }
 
-  void _fetchCurrentUserAndData() async {
+  void _fetchCurrentUserAndData() {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
-    try {
-      final doc = await _db.collection('users').doc(uid).get();
+    _userSub?.cancel();
+    _userSub = _db.collection('users').doc(uid).snapshots().listen((doc) {
       if (doc.exists) {
-        _currentUser = AppUser.fromFirestore(doc);
+        final user = AppUser.fromFirestore(doc);
+        _currentUser = user;
+
+        // Se il professionista è associato a un business, aggiorniamo i suoi servizi
+        if (user.businessId != null && user.businessId!.isNotEmpty) {
+          _updateServicesBusinessId(user.businessId!);
+        }
+
         fetchMyServices();
         _fetchMyAvailability();
+      }
+    });
+  }
+
+  void _updateServicesBusinessId(String businessId) async {
+    final providerId = _auth.currentUser?.uid;
+    if (providerId == null) return;
+
+    try {
+      final snapshot = await _db
+          .collection('services')
+          .where('providerId', isEqualTo: providerId)
+          .get();
+      for (final doc in snapshot.docs) {
+        final currentBId = doc.data()['businessId'] as String?;
+        if (currentBId == null || currentBId.isEmpty) {
+          doc.reference.update({'businessId': businessId});
+        }
       }
     } catch (_) {}
   }

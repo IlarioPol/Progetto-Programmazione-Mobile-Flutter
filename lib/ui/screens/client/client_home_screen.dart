@@ -277,36 +277,104 @@ class _MyBookingsTab extends StatelessWidget {
 
   const _MyBookingsTab({required this.clientVM});
 
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'Confirmed':
-        return const Color(0xFF4CAF50);
-      case 'Completed':
-        return const Color(0xFF2196F3);
-      case 'Rejected':
-        return const Color(0xFFF44336);
-      case 'Canceled':
-        return const Color(0xFF9E9E9E);
-      default:
-        return Colors.deepPurple;
+  Color _cardColor(BuildContext context, String status) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    if (isDark) {
+      switch (status) {
+        case 'Completed':
+          return const Color(0xFF102847);
+        case 'Confirmed':
+          return const Color(0xFF103318);
+        case 'Rejected':
+          return const Color(0xFF3B1212);
+        case 'Canceled':
+          return const Color(0xFF262626);
+        case 'Pending':
+        default:
+          return const Color(0xFF231936);
+      }
+    } else {
+      switch (status) {
+        case 'Completed':
+          return const Color(0xFFEFF6FF);
+        case 'Confirmed':
+          return const Color(0xFFF0FDF4);
+        case 'Rejected':
+          return const Color(0xFFFEF2F2);
+        case 'Canceled':
+          return const Color(0xFFF5F5F5);
+        case 'Pending':
+        default:
+          return const Color(0xFFFAF5FF);
+      }
     }
   }
 
-  Color _cardColor(String status) {
-    switch (status) {
-      case 'Pending':
-        return Colors.grey.shade100;
-      case 'Confirmed':
-        return const Color(0xFFE8F5E9);
-      case 'Rejected':
-        return const Color(0xFFFFEBEE);
-      case 'Completed':
-        return const Color(0xFFE3F2FD);
-      case 'Canceled':
-        return const Color(0xFFEEEEEE);
-      default:
-        return Colors.white;
-    }
+  Widget _buildStatusBadge(String status) {
+    final (Color bgColor, Color textColor, IconData icon, String label) =
+        switch (status) {
+      'Completed' => (
+          const Color(0xFF0D47A1), // Deep navy blue (contrast ratio 9.5:1 with white)
+          Colors.white,
+          Icons.check_circle,
+          'Completato',
+        ),
+      'Confirmed' => (
+          const Color(0xFF1B5E20), // Deep forest green
+          Colors.white,
+          Icons.check,
+          'Confermato',
+        ),
+      'Rejected' => (
+          const Color(0xFFB71C1C), // Deep crimson red
+          Colors.white,
+          Icons.cancel,
+          'Rifiutato',
+        ),
+      'Canceled' => (
+          const Color(0xFF424242), // Deep charcoal grey
+          Colors.white,
+          Icons.block,
+          'Annullato',
+        ),
+      'Pending' || _ => (
+          const Color(0xFF6A1B9A), // Deep purple
+          Colors.white,
+          Icons.hourglass_top,
+          'In attesa',
+        ),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: bgColor.withValues(alpha: 0.35),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: textColor),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: textColor,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -333,7 +401,7 @@ class _MyBookingsTab extends StatelessWidget {
             ),
           ),
         ...bookings.map((booking) => Card(
-              color: _cardColor(booking.status),
+              color: _cardColor(context, booking.status),
               margin: const EdgeInsets.symmetric(vertical: 8),
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -343,23 +411,26 @@ class _MyBookingsTab extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(booking.serviceName,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.bold)),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: _statusColor(booking.status),
-                            borderRadius: BorderRadius.circular(12),
+                        Expanded(
+                          child: Text(
+                            booking.serviceName,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
                           ),
-                          child: Text(booking.status,
-                              style: const TextStyle(
-                                  color: Colors.white, fontSize: 12)),
                         ),
+                        const SizedBox(width: 8),
+                        _buildStatusBadge(booking.status),
                       ],
                     ),
-                    Text('Data: ${booking.date}'),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Data: ${booking.date}',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                     if (booking.status == 'Pending' ||
                         booking.status == 'Confirmed') ...[
                       const SizedBox(height: 8),
